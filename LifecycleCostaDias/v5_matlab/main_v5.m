@@ -67,7 +67,7 @@ numSims = 2;                % How many individuals to simulate
 % THE ECONOMIC ENVIRONMENT
 % Set values of structural economic parameters
 
-T = 40;                      % Number of time period
+T = 50;                      % Number of time period
 r = 0.01;                   % Interest rate
 beta = 0.98;                  % Discount factor
 gamma = 1.5;                 % Coefficient of relative risk aversion
@@ -75,7 +75,7 @@ mu = 0;                      % mean of initial log income
 sigma = 0.25;                   % variance of log income 
 rho = 0.75;                     % persistency of log income
 Tretire = 41;                % age after which there is no income earned
-borrowingAllowed = 0;        % Is borrowing allowed
+borrowingAllowed = 1;        % Is borrowing allowed
 isUncertainty = 1;           % Is income uncertain?
 startA = 0;                  % How much asset do people start life with
 

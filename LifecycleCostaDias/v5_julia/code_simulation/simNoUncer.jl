@@ -1,14 +1,19 @@
 function simNoUncer(policyA1,EV,startingA)
 
 # This function takes the policy functions and value functions in an environment
-# where there is no uncertainty, along with starting assets and returns 
+# where there is no uncertainty, along with starting assets and returns
 # simulated paths of income, consumption assets and value
 
-#% ------------------------------------------------------------------------ 
+#% ------------------------------------------------------------------------
 # Declare global we need this file have access to
-#global T r 
-#global Agrid  Ygrid numSims interpMethod 
+#global T r
+#global Agrid  Ygrid numSims interpMethod
 
+    paramsInco=theta[       thetaL[1]+1:sum(thetaL[1:2])];
+
+  mu   =paramsInco[1];
+  sigma=paramsInco[2];
+  rho  =paramsInco[3];
 
 #% ------------------------------------------------------------------------
 # Initialise arrays that will hold the paths of income consumption, value
@@ -26,18 +31,18 @@ a = Array(Float64,T + 1,numSims);         # this is the path at the start of eac
 #-------------------------------------------------------------------------%
 
 for s = 1:1:numSims                   # loop through individuals
-    a[1, s] = startingA;   
+    a[1, s] = startingA;
     for t = 1:1:T                     # loop through time periods for a particular individual
 		intfV  = InterpIrregular(vec(Agrid[t, :]),vec(EV[t, :]), BCnil, InterpLinear);       # Define the interpolation func for Value
 		intfP  = InterpIrregular(vec(Agrid[t, :]),vec(policyA1[t, :]), BCnil, InterpLinear); # Define the interpolation func for Polic
 
-        y[t  , s]   = Ygrid[t];     
+        y[t  , s]   = Ygrid[t];
         v[t  , s]   =interp1extra(vec(Agrid[t, :]),vec(EV[t, :]),a[t, s],intfV);
-        a[t+1, s]   =interp1extra(vec(Agrid[t, :]),vec(policyA1[t, :]),a[t, s],intfP); 
+        a[t+1, s]   =interp1extra(vec(Agrid[t, :]),vec(policyA1[t, :]),a[t, s],intfP);
         c[t  , s] = a[t, s]  + y[t, s] - (a[t+1, s]/(1+r));
-    end   #t      
+    end   #t
 end # s
-  
+
 return  y, c, a, v
- 
+
 end

@@ -1,8 +1,7 @@
-
 # Paul Rodriguez translation into Julia 0.3.5 of Monica Costa Dias and Corma O'Dea "Dynamic Economics in Practice"
 # using Alex code for Getting Equiprobable Shock Points from a Normal Distributions
-# March 2015, p.lesmes.11@ucl.ac.uk
-# Please improve it!
+# March 2015
+
 
 # ------------------------------------------------------------------------
 # DESCRIPTION
@@ -11,61 +10,49 @@
 # hardcoded by the user or can be set to follow a log normal autoregessive
 # process
 
-# IMPORTANT: Comment lines 188 and 189 if you want to change the number of 
-# periods or use shocks generated in Julia
-
 # ------------------------------------------------------------------------
 # PREAMBLE
 # Ensure that all storage spaces variables, matrices, memory, globals are
 # clean from information stored in past runs
 
+using DataArrays	  # Handle missings in the simulations
+using DataFrames      # For making graphs or exporting data, is better as dataframes
 
 using Distributions   # For drwaing distributions
-using Optim           # Basic optimization routines
+using NLopt           # Basic optimization routines
 using Grid            # Interpolation tools
 
 
-# Set here the relevant directory. Please check 
-cd("C://Users//Paul//Documents//GitHub//ucl-econ-julia//LifecycleCostaDias//v5_julia")
+#cd("C:\\Users\\PaulAndrés\\Dropbox\\Health and Labour Supply\\Model\\Dynamic Economics 28-29 October 2013\\final code\\v5_julia")
+cd("C:\\Dropbox\\Health and Labour Supply\\Model\\Dynamic Economics 28-29 October 2013\\final code\\v5_julia")
+pwd()
 
-# ----------------------------------------------------------------------
 
-mainDir=pwd() 
 
 # Numeric tools
-cd("code_numericTools")
-require("getEquiprobNormalDeviates.jl")
-require("truncate.jl")
-require("interp1lin.jl")
-require("interp2D.jl") 
-cd(mainDir)
+require(joinpath("code_numericTools","getEquiprobNormalDeviates.jl"))
+require(joinpath("code_numericTools","truncate.jl"))
+
 
 # Grids and other inputs
-cd("code_gridsInputs")
-require("checkInputs.jl")
-require("getIncomeGrid.jl")
-require("getMinandMaxAss.jl")
-require("getGrid.jl")
-cd(mainDir)
+require(joinpath("code_gridsInputs","checkInputs.jl"))
+require(joinpath("code_gridsInputs","getIncomeGrid.jl"))
+require(joinpath("code_gridsInputs","getMinAndMaxAss.jl"))
+require(joinpath("code_gridsInputs","getGrid.jl"))         #It includes tLog() and eExp()
 
 # Programs for the solution
-cd("code_solution")
-require("solveValueFunction.jl")
-require("objectivefunc.jl")
-require("utility.jl")
-cd(mainDir)
+require(joinpath("code_solution","solveValueFunction.jl"))
+require(joinpath("code_solution","objectivefunc.jl"))
+require(joinpath("code_solution","utility.jl"))
 
 # Programs for the simulation
-cd("code_simulation")
-require("simNoUncer.jl")
-require("simWithUncer.jl")
-cd(mainDir)
+require(joinpath("code_simulation","simNoUncer.jl"))
+require(joinpath("code_simulation","simWithUncer.jl"))
 
 # Plot stuff
-cd("code_plots")
-require("plotPaths.jl")
-require("plots.jl")
-cd(mainDir)
+require(joinpath("code_plots","plotPaths.jl"))
+require(joinpath("code_plots","plots.jl"))
+
 
 tic()        # start the clock
 
@@ -77,10 +64,6 @@ tic()        # start the clock
 #% ------------------------------------------------------------------------
 # NUMERICAL METHODS
 # select solution, interpolation and integration methods
-
-#global interpMethod = 'pchip';      # interpolation method - IN JULIA, UP TO THE MOMENT, YOU CAN ONLY USE LINEAR WITH UNEVEN GRIDS
-const linearise = 1;               # whether to linearise the slope of EV when using EE - set linearise=1 to do this, else = 0
-
 
 # ------------------------------------------------------------------------
 # NUMERICAL CONSTANTS
@@ -105,17 +88,31 @@ const numSims = 2;                #How many individuals to simulate
 # THE ECONOMIC ENVIRONMENT
 # Set values of structural economic parameters
 
-const T = 40;                      # Number of time period (If you want to reproduce matlab results, be sure that it has the same number of periods!)
-const r = 0.01;                    # Interest rate
-const beta = 0.98;                 # Discount factor
-const gamma = 1.5;                 # Coefficient of relative risk aversion
-const mu = 0;                      # mean of initial log income
-const sigma = 0.25;                   # variance of log income
-const rho = 0.75;                     # persistency of log income
-const Tretire = 41;                # age after which there is no income earned
-const borrowingAllowed = 0;        # Is borrowing allowed
-const isUncertainty = 1;           # Is income uncertain?
-const startA = 0;                  # How much asset do people start life with
+const T = 50;                      	# Number of time period
+const r = 0.01;                    	# Interest rate
+const borrowingAllowed = 1;        # Is borrowing allowed
+const isUncertainty = 1;           	# Is income uncertain?
+const startA = 0;                  	# How much asset do people start life with
+Tretire = 41;                		# age after which there is no income earned
+
+beta = 0.98;                 		# Discount factor
+gamma = 1.5;                 		# Coefficient of relative risk aversion
+paramsUtil=[beta,gamma]
+
+mu = 0;                     		# mean of initial log income
+sigma = 0.25;                   	# variance of log income
+rho = 0.75;                     	# persistency of log income
+paramsInco=[mu,sigma,rho]
+
+
+# Construct a vector of parameters
+thetaL= [length(paramsUtil),length(paramsInco)]
+theta 		= Array(Float64,sum(thetaL)) # Big vector of parameters
+
+#Feed theta
+theta[                 1:thetaL[1]]=paramsUtil; 		# 7 params
+theta[       thetaL[1]+1:sum(thetaL[1:2])]=paramsInco; 	# 12 params
+
 
 # ------------------------------------------------------------------------
 # GRIDS
@@ -133,12 +130,9 @@ const uncertaintyMethod = 1;    #  =0 if we enter shocks manually, =1 if put sho
 hcIncome = [0.5941 ,   0.8179  ,  1.0000  ,  1.2227  ,  1.6832];  # hard-coded shocks, used if uncertaintyMethod = 1
 hcIncPDF = [0.1016 ,   0.2492  ,  0.2983  ,  0.2492  ,  0.1017];  # and respective probabilities
 
-# Check inputs
-checkInputs()
-
-
 ## Get income grid
-(Ygrid, incTransitionMrx, minInc, maxInc) = getIncomeGrid();
+checkInputs(paramsInco)
+(Ygrid, incTransitionMrx, minInc, maxInc) = getIncomeGrid(paramsInco);
 
 
 ## ------------------------------------------------------------------------
@@ -148,16 +142,19 @@ checkInputs()
 
 (borrowCon, maxAss) = getMinAndMaxAss(borrowingAllowed, minInc, maxInc, startA);
 
-Agrid = Array(Float64,T+1, numPointsA);
+Agrid = Array(Any,T+1); # This is a grid of log-assets shifted (so the negatives are not a problem)!! so you must be careful on recover the real A
+										# every moment that you want to use it
 for ixt = 1:1:T+1
-    Agrid[ixt, :] = getGrid(borrowCon[ixt], maxAss[ixt], numPointsA, gridMethod);
+	Agrid[ixt] = getGrid(borrowCon[ixt], maxAss[ixt], numPointsA, gridMethod)
 end
+
+ eExp( [Agrid[1]] ,borrowCon[1],gridMethod)
 
 #% ------------------------------------------------------------------------
 # SOLVE CONSUMER'S PROBLEM
 # Get policy function and value function
 
-(policyA1, policyC, val, exVal) = solveValueFunction();
+(policyA1, policyC, val, EV) = solveValueFunction(theta);
 
 	# Want to compare with Matlab version? In that way you can test how different are
 	# simulations for the same policyFunc in Matlab and Julia
@@ -169,7 +166,7 @@ end
 # savings profiles over lifecycle
 
 if isUncertainty == 0
-    (ypath, cpath, apath, vpath) = simNoUncer(policyA1, exVal, startA);
+    data1F = simNoUncer(theta,policyA1, EV, startA);  # data1F= (ypath, cpath, apath, vpath)
 else
 	# Get the draws, and the feed the simulation with them (sligthly different than the original code)
 
@@ -184,30 +181,69 @@ else
  	sig_inc = sigma/ ((1-rho^2)^0.5);
  	logy1   =rand(Normal(mu, sig_inc),numSims);  # a random draw for the initial income
 
-		# IMPORTANT: Want to compare with Matlab version? In that way you can test how different are
-		# simulations using the same shocks. NOTICE THAT THIS OVERIDES THE GENERATED SHOCKS FROM
-		# THE PREVIOUS LINES
-		# Comment this lines if you want to change the number of periods
+		# Want to compare with Matlab version? In that way you can test how different are
+		# simulations using the same shocks
  		e      = readdlm("matlablObj\\ematlab.csv", ',' );
  		logy1  = readdlm("matlablObj\\logy1matlab.csv", ',' );
 
-    (ypath, cpath, apath, vpath) = simWithUncer(policyA1,exVal, startA,e,logy1,randYpath);
+    Ret1 = simWithUncer(theta,policyA1,EV, startA,e,logy1,randYpath);  # data1F= (ypath, cpath, apath, vpath)
 end
 
 
 toc();     # Stop the clock
 
+
 #% ------------------------------------------------------------------------
-# PLOTS
+# Export data
+
+ # Return the simulated dataset dataset
+
+    indi=[1:numSims]
+    indix=indi
+    time =fill(1, numSims)
+    for i=2:T
+        indix = [ indix , indi ]
+        time  = [ time  , fill(i, numSims) ]
+    end
+
+    data1F=DataFrame(Float64, T*numSims,length(Ret1));
+    data1F[:t]=time;
+    data1F[:indiv]=indix;
+
+    for el=1:1:length(Ret1)
+        a1=Ret1[el]'
+        a1r=reshape(a1[:,1:50], T*numSims)
+        data1F[:,el] = a1r
+    end
+
+    nameCols=[symbol("labY");symbol("C");symbol("A");symbol("V");symbol("t")]
+    nameColsF=[nameCols;symbol("Indiv")]
+    names!(data1F, nameColsF)
+
+# Averages
+
+data1=DataFrame(Float64, T,length(data1F)-1);
+
+for el=1:1:(length(data1F)-1)
+	for t=1:1:T
+		a1= data1F[data1F[:t] .== t, el]
+		data1[t,el] = mean(dropna(a1))
+	end
+end
+data1
+names!(data1, nameCols)
+
+writetable(joinpath("output","data1.csv"),data1)		# All Data
+writetable(joinpath("output","dataFull1.csv"),data1F)   # Just the average
+
+#% ------------------------------------------------------------------------
+# PLOTS (but is cheaper to do the in Stata, R, etc.)
 # Plots some features of the simulation and simulation
 # Use a program that supports Gadfly, in these days, either JUNO, IJULIA
 
 if 1==1  # In purspouse, Gadfly is just so slow!! But there are few good alternatives (March 2015)
 
-	# Slow.........
 	using Gadfly
-	using DataFrames      # For making graphs or exporting data, is better as dataframes
-
 
 	plotPaths()
 

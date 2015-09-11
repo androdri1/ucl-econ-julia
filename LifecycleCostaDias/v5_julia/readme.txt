@@ -13,10 +13,9 @@ compare using the exact policyA1 and shocks that are generated there.
 
 Just include main_v5 and it will load all the required files. I've ordered in folders as it makes it
 more organized
-Graphics are exported into "output/images", using Gadfly and Cairo. As it is slow, it is within an
-impossible condition (1==0) that you need to deactivate if you want to generate those graphs.
+Graphics are exported into "output/images", using Gadfly and Cairo; as it is so slow, it is in an
+impossible condition (1==0) that you need to deactivate.
 Alternatively, you can use the notebook for IJulia (Graphs Main5.ipynb) with some interactive features
 
 Paul
-p.lesmes.11@ucl.ac.uk
 

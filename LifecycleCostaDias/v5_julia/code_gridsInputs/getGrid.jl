@@ -1,12 +1,17 @@
 function getGrid(minongrid, maxongrid, GridPoints, method)
 
-#NB: This code borrows some code from Chris Carroll of John's Hopkins University
+#NB: This code is a modification from Chris Carroll of John's Hopkins University
+# version. Be careful as Chris' code generate a nice grid that you can actually
+# see. This code only generates the relevant domain, the actual action is done
+# by the two functions below. This is due to the current limitations of interpolation
+# packages in Julia.
+#
 #His website is here http://www.econ2.jhu.edu/people/ccarroll/ and his
 #notes on solving dynamic models are very good - they can be found
 #here: http://www.econ2.jhu.edu/people/ccarroll/SolvingMicroDSOPs.pdf
 
 
-#% ------------------------------------------------------------------------ 
+#% ------------------------------------------------------------------------
 # Explanation
 
 # We need to a grid from a to b. A basic approach could involve spacing out
@@ -14,7 +19,7 @@ function getGrid(minongrid, maxongrid, GridPoints, method)
 #     grid= linspace(a, b, GridPoints);
 
 # If we want to space them out so that the growth rate of the distance
-# between spaces is equal we achieve this by spacing out the logs of grid 
+# between spaces is equal we achieve this by spacing out the logs of grid
 # equally. We could achieve this by the following line of code:
 #     grid= exp(linspace(log(a), log(b), GridPoints));
 
@@ -25,32 +30,63 @@ function getGrid(minongrid, maxongrid, GridPoints, method)
 
 
 
-span = maxongrid - minongrid;     # b - a                  
+span = maxongrid - minongrid;     # b - a
 
 
 
 if method=="equalsteps"
-    grid= linspace(min, span, GridPoints);
+  ste=(span)/(numPointsA-1)
+  grid= minongrid:1:maxongrid;
 elseif method== "logsteps"
-  loggrid = linspace(log(1), log(1+span), GridPoints);
-  grid = exp(loggrid)-1;
+  ste=(log(1+span))/(numPointsA-1)
+  maxi=ste*(numPointsA-1)
+  grid = log(1):ste:maxi
+elseif method=="2logsteps"
+  ste=(  log(1+log(1+span)) )/(numPointsA-1)
+  maxi=ste*(numPointsA-1)
+  grid = log(1):ste:maxi
 elseif method=="3logsteps"
-  loggrid = linspace(log(1+log(1+log(1))), log(1+log(1+log(1+span))), GridPoints);
-  grid = exp(exp(exp(loggrid)-1)-1)-1;   
-elseif method=="5logsteps"
-  loggrid = linspace(log(1+log(1+log(1+log(1+log(1))))), log(1+log(1+log(1+log(1+log(1+span))))), GridPoints);
-  grid = exp(exp(exp(exp(exp(loggrid)-1)-1)-1)-1)-1;   
-elseif method=="10logsteps"
-  loggrid = linspace(log(1+log(1+log(1+log(1+log(1+log(1+log(1+log(1+log(1+log(1)))))))))), log(1+log(1+log(1+log(1+log(1+log(1+log(1+log(1+log(1+log(1+span)))))))))), GridPoints);
-  grid = exp(exp(exp(exp(exp(exp(exp(exp(exp(exp(loggrid)-1)-1)-1)-1)-1)-1)-1)-1)-1)-1;   
+  ste=(  log(1+log(1+log(1+span))) )/(numPointsA-1)
+  maxi=ste*(numPointsA-1)
+  grid = log(1):ste:maxi
 else
     error("Error in getgrid. You have entered an invalid method for choosing the distance between grid points. Method must be one of equalsteps, logsteps, 3logsteps, 5logsteps or 10logsteps.");
 end
 
-
-grid = grid + minongrid*ones(Float64,GridPoints,1);
-
 return grid;
+
+end
+
+# ------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------
+# In order to know which is the appropiate value of "A" to use in the grid. Use it for
+# introducing a value in an interpolation, for instance
+function tLog(a,lb,gridMethod)
+  if gridMethod=="equalsteps"
+      return a
+  elseif gridMethod== "logsteps"
+    return log(a+1-lb)
+  elseif gridMethod=="2logsteps"
+    return log(1+log(a+1-lb));
+  elseif gridMethod=="3logsteps"
+    return log(1+log(1+log(a+1-lb)));
+  end
+end
+
+# ------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------
+# In order to know which is value of "A" that is implied by a position in the grid.
+
+function eExp(loga,lb,gridMethod)
+  if gridMethod=="equalsteps"
+      return loga
+  elseif gridMethod== "logsteps"
+    return exp( loga )-1+lb
+  elseif gridMethod=="2logsteps"
+    return exp(exp( loga )-1)-1+lb;
+  elseif gridMethod=="3logsteps"
+    return exp(exp(exp( loga )-1)-1)-1+lb;
+  end
 
 end
 
